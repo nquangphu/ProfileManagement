@@ -6,6 +6,7 @@ com/nqphu/utils/FormUtil.class
 com/nqphu/utils/ConnectionUtil.class
 com/nqphu/controller/web/api/RemoveApi.class
 com/nqphu/Cache/LRUCache.class
+com/nqphu/dao/ProfileDAO.class
 com/nqphu/controller/web/api/RemoveApi$1.class
 com/nqphu/controller/web/ProfileDetailController.class
 com/nqphu/utils/SessionUtil.class

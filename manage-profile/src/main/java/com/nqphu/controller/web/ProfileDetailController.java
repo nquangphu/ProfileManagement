@@ -42,7 +42,6 @@ public class ProfileDetailController extends HttpServlet {
                             ProfileModel pm = null;
                             pm = profileService.getProfile(id);
 
-                            
                             req.setAttribute("profile", pm);
                             req.getRequestDispatcher("views/web/profile-detail.jsp").forward(req, resp);
                             
