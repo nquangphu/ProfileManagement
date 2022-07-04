@@ -1,9 +1,10 @@
 package com.nqphu.controller.web.api;
 
-import com.nqphu.model.ProfileModel;
 import com.nqphu.service.ProfileService;
 import com.nqphu.utils.HttpUtil;
 import com.nqphu.utils.SessionUtil;
+import com.phu.Profile;
+import com.phu.ProfileResult;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -40,18 +41,20 @@ public class LoginApi extends HttpServlet {
         
         br = req.getReader();
         HttpUtil of = HttpUtil.of(br);
-        ProfileModel pro = of.toModel(ProfileModel.class);
+        Profile pro = of.toModel(Profile.class);
         // mapper.writeValue(resp.getOutputStream(), pro);
-        pro = profileService.findByUserNameAndPassword(pro.getUsername(), pro.getPwd());
         
-        if (pro == null) {
+        
+        ProfileResult result = profileService.findByUserNameAndPassword(pro.getUsername(), pro.getPwd());
+        
+        if (result.getError() == 1) {
             PrintWriter bw = resp.getWriter();
             bw.write("{\"error\":0}");
         } else {
             HttpSession session = req.getSession();
             String ssId = session.getId();
             
-            int userId = pro.getId();
+            int userId = result.getProfile().getId();
             session.setAttribute("userId", userId);
             
             String userAgent = req.getHeader("User-Agent");

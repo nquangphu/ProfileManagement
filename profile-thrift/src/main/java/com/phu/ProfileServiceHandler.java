@@ -10,12 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.apache.thrift.TException;
 
-/**
- *
- * @author phu
- */
 public class ProfileServiceHandler implements ProfileThriftService.Iface {
 
     public Connection getConnection() {
@@ -37,13 +32,22 @@ public class ProfileServiceHandler implements ProfileThriftService.Iface {
     }
 
     @Override
-    public ProfileThrift getProfile(int id) throws TException {
+    public ProfileResult getProfile(int id) {
+
+        // Sai requirement => error = 3
+        if (id <= 0) {
+            return new ProfileResult(null, 3);
+        }
+
         Connection conn = this.getConnection();
 
         String sql = "SELECT * FROM Profile WHERE id=?";
         PreparedStatement preStatement = null;
         ResultSet resultSet = null;
-        ProfileThrift pro = null;
+
+        // default result = null => error = 1
+        ProfileResult result = new ProfileResult(null, 1);
+
         if (conn != null) {
             try {
                 preStatement = conn.prepareStatement(sql);
@@ -51,7 +55,7 @@ public class ProfileServiceHandler implements ProfileThriftService.Iface {
                 resultSet = preStatement.executeQuery();
 
                 if (resultSet.next()) {
-                    pro = new ProfileThrift();
+                    Profile pro = new Profile();
                     pro.setId(resultSet.getInt("id"));
                     pro.setUsername(resultSet.getString("username"));
                     pro.setPwd(resultSet.getString("pwd"));
@@ -61,6 +65,10 @@ public class ProfileServiceHandler implements ProfileThriftService.Iface {
                     pro.setGender(resultSet.getString("gender"));
                     pro.setAddress(resultSet.getString("address"));
                     pro.setPhone(resultSet.getString("phone"));
+
+                    // set result = 0 => success
+                    result.setError(0);
+                    result.setProfile(pro);
                 }
 
                 conn.close();
@@ -74,71 +82,6 @@ public class ProfileServiceHandler implements ProfileThriftService.Iface {
                 }
             } catch (SQLException ex) {
                 Logger.getLogger(ProfileServiceHandler.class.getName()).log(Level.SEVERE, null, ex);
-            }
-        }
-
-        return pro;
-    }
-
-    @Override
-    public Map<Integer, ProfileThrift> multiGetProfile(List<Integer> lst_id) throws TException {
-        Map<Integer, ProfileThrift> result = new HashMap<>();
-        
-        for (int i : lst_id) {
-            result.put(i, null);
-        }
-        
-
-        if (!lst_id.isEmpty()) {
-            Connection conn = this.getConnection();
-            String lstString = "";
-
-            for (int i = 0; i < lst_id.size(); i++) {
-                lstString += lst_id.get(i);
-                if (i != lst_id.size() - 1) {
-                    lstString += ", ";
-                }
-            }
-
-            String sql = "SELECT * from Profile where user_id IN (?)";
-
-            PreparedStatement preStatement = null;
-            ResultSet resultSet = null;
-            ProfileThrift pro = null;
-
-            if (conn != null) {
-                try {
-                    preStatement = conn.prepareStatement(sql);
-                    preStatement.setString(1, lstString);
-                    resultSet = preStatement.executeQuery();
-
-                    while (resultSet.next()) {
-                        pro = new ProfileThrift();
-                        pro.setId(resultSet.getInt("id"));
-                        pro.setUsername(resultSet.getString("username"));
-                        pro.setPwd(resultSet.getString("pwd"));
-                        pro.setFullname(resultSet.getString("fullname"));
-                        pro.setEmail(resultSet.getString("email"));
-                        pro.setDob(resultSet.getString("dob"));
-                        pro.setGender(resultSet.getString("gender"));
-                        pro.setAddress(resultSet.getString("address"));
-                        pro.setPhone(resultSet.getString("phone"));
-                        
-                        result.replace(pro.getId(), pro);
-                    }
-
-                    conn.close();
-
-                    if (preStatement != null) {
-                        preStatement.close();
-                    }
-
-                    if (resultSet != null) {
-                        resultSet.close();
-                    }
-                } catch (SQLException ex) {
-                    Logger.getLogger(ProfileServiceHandler.class.getName()).log(Level.SEVERE, null, ex);
-                }
             }
         }
 
@@ -146,23 +89,35 @@ public class ProfileServiceHandler implements ProfileThriftService.Iface {
     }
 
     @Override
-    public ProfileThrift findByUserNameAndPassword(String username, String password) throws TException {
-        Connection conn = this.getConnection();
+    public MapResult multiGetProfile(List<Integer> lst_id) {
+        // param = null => error = 2
+        if (lst_id == null) {
+            return new MapResult(null, 2);
+        }
 
-        String sql = "select * from Profile where username = ? and pwd=MD5(?)";
+        // sai requirement (lst_id is empty) => error = 3
+        if (lst_id.isEmpty()) {
+            return new MapResult(null, 3);
+        }
+
+        String lstString = listToString(lst_id);
+
+        Map<Integer, ProfileResult> profileMap = new HashMap<>();
+        Connection conn = this.getConnection();
+        String sql = "SELECT * from Profile where user_id IN (?)";
+
         PreparedStatement preStatement = null;
         ResultSet resultSet = null;
-        ProfileThrift pro = null;
+        Profile pro = null;
+
         if (conn != null) {
             try {
                 preStatement = conn.prepareStatement(sql);
-                preStatement.setString(1, username);
-                preStatement.setString(2, password);
- 
+                preStatement.setString(1, lstString);
                 resultSet = preStatement.executeQuery();
 
-                if (resultSet.next()) {
-                    pro = new ProfileThrift();
+                while (resultSet.next()) {
+                    pro = new Profile();
                     pro.setId(resultSet.getInt("id"));
                     pro.setUsername(resultSet.getString("username"));
                     pro.setPwd(resultSet.getString("pwd"));
@@ -172,6 +127,8 @@ public class ProfileServiceHandler implements ProfileThriftService.Iface {
                     pro.setGender(resultSet.getString("gender"));
                     pro.setAddress(resultSet.getString("address"));
                     pro.setPhone(resultSet.getString("phone"));
+
+                    profileMap.put(pro.getId(), new ProfileResult(pro, 0));
                 }
 
                 conn.close();
@@ -188,19 +145,98 @@ public class ProfileServiceHandler implements ProfileThriftService.Iface {
             }
         }
 
-        return pro;
+        // result = null => error = 1
+        if (profileMap.isEmpty()) {
+            return new MapResult(null, 1);
+        } else {
+            // success => error = 0
+            return new MapResult(profileMap, 0);
+        }
+
     }
 
     @Override
-    public int findByUserName(String username) throws TException {
+    public ProfileResult findByUserNameAndPassword(String username, String password) {
+        // params = null => error = 2
+        if (username == null || password == null) {
+            return new ProfileResult(null, 2);
+        }
+
+        // params is empty => error = 3
+        if (username.equals("") || password.equals("")) {
+            return new ProfileResult(null, 3);
+        }
+
+        Connection conn = this.getConnection();
+        String sql = "select * from Profile where username = ? and pwd=MD5(?)";
+        PreparedStatement preStatement = null;
+        ResultSet resultSet = null;
+
+        // Default result = null => error = 1
+        ProfileResult result = new ProfileResult(null, 1);
+
+        if (conn != null) {
+            try {
+                preStatement = conn.prepareStatement(sql);
+                preStatement.setString(1, username);
+                preStatement.setString(2, password);
+
+                resultSet = preStatement.executeQuery();
+
+                if (resultSet.next()) {
+                    Profile pro = new Profile();
+                    pro.setId(resultSet.getInt("id"));
+                    pro.setUsername(resultSet.getString("username"));
+                    pro.setPwd(resultSet.getString("pwd"));
+                    pro.setFullname(resultSet.getString("fullname"));
+                    pro.setEmail(resultSet.getString("email"));
+                    pro.setDob(resultSet.getString("dob"));
+                    pro.setGender(resultSet.getString("gender"));
+                    pro.setAddress(resultSet.getString("address"));
+                    pro.setPhone(resultSet.getString("phone"));
+
+                    result.setError(0);
+                    result.setProfile(pro);
+                }
+
+                conn.close();
+
+                if (preStatement != null) {
+                    preStatement.close();
+                }
+
+                if (resultSet != null) {
+                    resultSet.close();
+                }
+            } catch (SQLException ex) {
+                Logger.getLogger(ProfileServiceHandler.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+
+        return result;
+    }
+
+    @Override
+    public int findByUserName(String username) {
+        // params = null => return -2
+        if (username == null) {
+            return -2;
+        }
+
+        // params is empty => return -3
+        if (username.equals("")) {
+            return -3;
+        }
         Connection conn = this.getConnection();
 
         String sql = "SELECT id FROM Profile WHERE username=?";
         PreparedStatement preStatement = null;
         ResultSet resultSet = null;
-        ProfileThrift pro = null;
+        Profile pro = null;
 
+        //Default result = -1 (Not found)
         int id_result = -1;
+
         if (conn != null) {
             try {
                 preStatement = conn.prepareStatement(sql);
@@ -229,12 +265,19 @@ public class ProfileServiceHandler implements ProfileThriftService.Iface {
     }
 
     @Override
-    public int save(ProfileThrift profile) throws TException {
+    public int save(Profile profile) {
+
+        if (profile == null) {
+            return -2;
+        }
+
         Connection conn = this.getConnection();
 
         String sql = "insert into Profile (username, fullname, pwd, email, gender, dob, address, phone) values(?,?,MD5(?),?,?,?,?,?)";
         PreparedStatement preStatement = null;
         ResultSet resultSet = null;
+
+        //Default result = null (Not found)
         int id_result = -1;
 
         if (conn != null) {
@@ -279,7 +322,12 @@ public class ProfileServiceHandler implements ProfileThriftService.Iface {
     }
 
     @Override
-    public void remove(int id) throws TException {
+    public void remove(int id) {
+
+        if (id <= 0) {
+            return;
+        }
+
         Connection conn = this.getConnection();
 
         String sql = "DELETE FROM Profile WHERE id=?";
@@ -304,8 +352,18 @@ public class ProfileServiceHandler implements ProfileThriftService.Iface {
         }
     }
 
-    @Override
-    public void setProfile(ProfileThrift p) throws TException {
+    public String listToString(List<Integer> lst_id) {
+        String lstString = "";
+        if (!lst_id.isEmpty()) {
+            for (int i = 0; i < lst_id.size(); i++) {
+                lstString += lst_id.get(i);
+                if (i != lst_id.size() - 1) {
+                    lstString += ", ";
+                }
+            }
+        }
+
+        return lstString;
     }
 
 }

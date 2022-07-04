@@ -1,7 +1,8 @@
 
 package com.nqphu.Cache;
 
-import com.nqphu.model.ProfileModel;
+
+import com.phu.Profile;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -13,13 +14,13 @@ import java.util.Map;
  */
 public class LRUCache {
 
-    public static Map<Integer, ProfileModel> map = new HashMap<>();
+    public static Map<Integer, Profile> map = new HashMap<>();
     public static Deque<Integer> deque = new LinkedList<>();
     public static int CACHE_CAPACITY = 5;
 
-    public ProfileModel getProfileFromCache(int id) {
-        ProfileModel pro = null;
-        if (map.containsKey(id)) {
+    public Profile getProfileFromCache(int id) {
+        Profile pro = null;
+        if (id > 0 && map.containsKey(id)) {
             pro = map.get(id);
             deque.remove(id);
             deque.addFirst(id);
@@ -27,7 +28,7 @@ public class LRUCache {
         return pro;
     }
 
-    public void putProfileToCache(ProfileModel pro) {
+    public void putProfileToCache(Profile pro) {
         int id = pro.getId();
         if (map.containsKey(id)) {
             map.remove(id);
@@ -44,7 +45,7 @@ public class LRUCache {
     }
     
     public void removeProfileFromCache (int id) {
-        if (this.getProfileFromCache(id) != null) {
+        if (id > 0 && this.getProfileFromCache(id) != null) {
             map.remove(id);
             deque.remove(id);
         }

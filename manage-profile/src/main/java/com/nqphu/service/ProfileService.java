@@ -1,15 +1,12 @@
 package com.nqphu.service;
 
 import com.nqphu.dao.ProfileDAO;
-import com.nqphu.model.ProfileModel;
+import com.phu.MapResult;
+import com.phu.Profile;
+import com.phu.ProfileResult;
 import java.util.List;
-import java.util.Map;
 import org.apache.thrift.TException;
 
-/**
- *
- * @author phu
- */
 public final class ProfileService {
 
     private ProfileDAO profileDAO;
@@ -18,15 +15,15 @@ public final class ProfileService {
         profileDAO = new ProfileDAO();
     }
 
-    public ProfileModel getProfile(int id) {
+    public ProfileResult getProfile(int id) {
         return profileDAO.getProfile(id);
     }
 
-    public Map<Integer, ProfileModel> multiGetProfile(List<Integer> lst_id) throws TException {
+    public MapResult multiGetProfile(List<Integer> lst_id) throws TException {
         return profileDAO.multiGetProfile(lst_id);
     }
 
-    public ProfileModel findByUserNameAndPassword(String username, String password) {
+    public ProfileResult findByUserNameAndPassword(String username, String password) {
         return profileDAO.findByUserNameAndPassword(username, password);
     }
 
@@ -34,7 +31,7 @@ public final class ProfileService {
         return profileDAO.findByUserName(username);
     }
 
-    public int save(ProfileModel profile) {
+    public int save(Profile profile) {
         return profileDAO.save(profile);
     }
 
